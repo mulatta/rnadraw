@@ -1,0 +1,13 @@
+[package]
+name = "rnadraw"
+description = "RNA secondary structure SVG renderer CLI"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+rnadraw-core.workspace = true
+clap = { version = "4", features = ["derive"] }

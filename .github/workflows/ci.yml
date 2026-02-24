@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: NixOS/nix-installer-action@main
+
+      - name: Check formatting
+        run: nix fmt -- --ci
+
+      - name: Clippy
+        run: nix develop -c cargo clippy --workspace -- -D warnings
+
+      - name: Test
+        run: nix develop -c cargo test --workspace
+
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: [cli, wasm, wasi]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: NixOS/nix-installer-action@main
+
+      - name: Build ${{ matrix.package }}
+        run: nix build .#${{ matrix.package }}
+
+  push-cache:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: NixOS/nix-installer-action@main
+
+      - name: Build all packages
+        run: |
+          nix build .#cli -o result-cli
+          nix build .#wasm -o result-wasm
+          nix build .#wasi -o result-wasi
+
+      - name: Push to niks3
+        env:
+          NIKS3_SERVER_URL: https://niks3.mulatta.io
+        run: |
+          echo "${{ secrets.NIKS3_API_TOKEN }}" > "$RUNNER_TEMP/niks3-token"
+          export NIKS3_AUTH_TOKEN_FILE="$RUNNER_TEMP/niks3-token"
+          nix run github:Mic92/niks3 -- push ./result-cli ./result-wasm ./result-wasi
+
+  publish:
+    needs: [test, build]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Publish rnadraw-core
+        run: cargo publish -p rnadraw-core
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+      - name: Wait for crates.io indexing
+        run: sleep 30
+
+      - name: Publish rnadraw (CLI)
+        run: cargo publish -p rnadraw
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}

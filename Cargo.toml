@@ -1,0 +1,23 @@
+[workspace]
+resolver = "2"
+members = ["crates/core", "crates/cli", "crates/wasm"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/mulatta/rnadraw"
+keywords = [
+  "rna",
+  "secondary-structure",
+  "svg",
+  "visualization",
+  "bioinformatics",
+]
+categories = ["science", "visualization"]
+
+[workspace.dependencies]
+rnadraw-core = { path = "crates/core", version = "0.1.0" }
+
+[workspace.metadata.crane]
+name = "rnadraw"

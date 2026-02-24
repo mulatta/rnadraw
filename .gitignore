@@ -1,0 +1,4 @@
+/target
+*.svg
+*.html
+tests/fixtures/comprehensive_gt.json
