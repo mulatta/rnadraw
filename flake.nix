@@ -25,16 +25,30 @@
     flake-parts.lib.mkFlake { inherit inputs; } {
       systems = import inputs.systems;
       imports = [
+        ./nix/checks.nix
         ./nix/formatter.nix
         ./nix/packages.nix
+        ./nix/shell.nix
       ];
 
       perSystem =
         { system, ... }:
-        {
-          _module.args.pkgs = import inputs.nixpkgs {
+        let
+          pkgs = import inputs.nixpkgs {
             inherit system;
             overlays = [ (import inputs.rust-overlay) ];
+          };
+          rustToolchain = pkgs.rust-bin.stable.latest.default.override {
+            targets = [
+              "wasm32-unknown-unknown"
+              "wasm32-wasip1"
+            ];
+          };
+        in
+        {
+          _module.args = {
+            inherit pkgs;
+            craneLib = (inputs.crane.mkLib pkgs).overrideToolchain rustToolchain;
           };
         };
     };

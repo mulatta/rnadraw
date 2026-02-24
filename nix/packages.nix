@@ -1,24 +1,10 @@
-{ inputs, ... }:
+{ self, ... }:
 {
   perSystem =
-    {
-      pkgs,
-      ...
-    }:
+    { craneLib, pkgs, ... }:
     let
-      # Rust toolchain: stable with WASM/WASI targets
-      rustToolchain = pkgs.rust-bin.stable.latest.default.override {
-        targets = [
-          "wasm32-unknown-unknown"
-          "wasm32-wasip1"
-        ];
-      };
-
-      craneLib = (inputs.crane.mkLib pkgs).overrideToolchain rustToolchain;
-
-      # Common source filtering: only Rust/TOML/JSON files
       src = pkgs.lib.cleanSourceWith {
-        src = inputs.self;
+        src = self;
         filter =
           path: type: (craneLib.filterCargoSources path type) || (builtins.match ".*\\.json$" path != null);
       };
@@ -97,13 +83,6 @@
       packages = {
         inherit cli wasm wasi;
         default = cli;
-      };
-
-      devShells.default = craneLib.devShell {
-        packages = with pkgs; [
-          wasm-bindgen-cli
-          wasmtime
-        ];
       };
     };
 }
