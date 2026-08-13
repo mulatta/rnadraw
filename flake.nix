@@ -31,6 +31,17 @@
         inherit inputs;
       };
 
+      wasmBindgenDependency =
+        (builtins.fromTOML (builtins.readFile ./crates/wasm/Cargo.toml)).dependencies."wasm-bindgen";
+      wasmBindgenVersion = lib.removePrefix "=" (
+        if builtins.isAttrs wasmBindgenDependency then
+          wasmBindgenDependency.version
+        else
+          wasmBindgenDependency
+      );
+      wasmBindgenCliFor =
+        pkgs: pkgs.${"wasm-bindgen-cli_${lib.replaceStrings [ "." ] [ "_" ] wasmBindgenVersion}"};
+
       pkgsFor = eachSystem (
         system:
         import nixpkgs {
@@ -63,7 +74,7 @@
             formatter = self.callPackage ./nix/packages/formatter/package.nix { inherit pkgs; };
             wasi = self.callPackage ./nix/packages/wasi/package.nix { };
             wasm = self.callPackage ./nix/packages/wasm/package.nix {
-              wasm-bindgen-cli = pkgs.wasm-bindgen-cli_0_2_108;
+              wasm-bindgen-cli = wasmBindgenCliFor pkgs;
             };
           });
         in
@@ -97,6 +108,7 @@
         import ./nix/shell.nix {
           pkgs = pkgsFor.${system};
           formatter = packages.${system}.formatter;
+          wasm-bindgen-cli = wasmBindgenCliFor pkgsFor.${system};
         }
       );
 
