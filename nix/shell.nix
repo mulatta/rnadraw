@@ -1,17 +1,18 @@
 {
   formatter,
   pkgs,
+  wasm-bindgen-cli,
 }:
 
 {
   default = pkgs.mkShell {
-    packages = with pkgs; [
-      cargo
-      clippy
-      rustc
-      rustfmt
+    packages = [
+      pkgs.cargo
+      pkgs.clippy
+      pkgs.rustc
+      pkgs.rustfmt
       wasm-bindgen-cli
-      wasmtime
+      pkgs.wasmtime
       formatter
     ];
   };
