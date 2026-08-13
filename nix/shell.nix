@@ -1,12 +1,18 @@
-_: {
-  perSystem =
-    { craneLib, pkgs, ... }:
-    {
-      devShells.default = craneLib.devShell {
-        packages = with pkgs; [
-          wasm-bindgen-cli
-          wasmtime
-        ];
-      };
-    };
+{
+  formatter,
+  pkgs,
+}:
+
+{
+  default = pkgs.mkShell {
+    packages = with pkgs; [
+      cargo
+      clippy
+      rustc
+      rustfmt
+      wasm-bindgen-cli
+      wasmtime
+      formatter
+    ];
+  };
 }
