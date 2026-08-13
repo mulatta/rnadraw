@@ -10,10 +10,11 @@ rustPlatform.buildRustPackage {
   inherit (source) src;
   cargoLock.lockFile = ../../../Cargo.lock;
   cargoBuildFlags = [
+    "--target"
+    "wasm32-unknown-unknown"
     "-p"
     "rnadraw-wasm"
   ];
-  CARGO_BUILD_TARGET = "wasm32-unknown-unknown";
 
   strictDeps = true;
   doCheck = false;

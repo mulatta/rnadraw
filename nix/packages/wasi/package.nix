@@ -10,10 +10,11 @@ rustPlatform.buildRustPackage {
   inherit (source) src;
   cargoLock.lockFile = ../../../Cargo.lock;
   cargoBuildFlags = [
+    "--target"
+    "wasm32-wasip1"
     "-p"
     "rnadraw"
   ];
-  CARGO_BUILD_TARGET = "wasm32-wasip1";
 
   strictDeps = true;
   doCheck = false;
