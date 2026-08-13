@@ -2,54 +2,83 @@
   description = "rnadraw";
 
   inputs = {
-    # keep-sorted start
-    crane.url = "github:ipetkov/crane";
-    flake-parts.inputs.nixpkgs-lib.follows = "nixpkgs";
-    flake-parts.url = "github:hercules-ci/flake-parts";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
-    rust-overlay.url = "github:oxalica/rust-overlay";
-    systems.url = "github:nix-systems/default";
-    treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
     treefmt-nix.url = "github:numtide/treefmt-nix";
-    # keep-sorted end
+    treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   nixConfig = {
+    allow-import-from-derivation = false;
     extra-substituters = [ "https://cache.mulatta.io" ];
     extra-trusted-public-keys = [ "cache.mulatta.io-1:DrV+Oy2azNyVKM7ihhD1QoOetRUnW+1G6RWToUpSO4U=" ];
   };
 
   outputs =
-    inputs@{ flake-parts, ... }:
-    flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = import inputs.systems;
-      imports = [
-        ./nix/checks.nix
-        ./nix/formatter.nix
-        ./nix/packages.nix
-        ./nix/shell.nix
-      ];
+    inputs@{ self, nixpkgs, ... }:
+    let
+      inherit (nixpkgs) lib;
 
-      perSystem =
-        { system, ... }:
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "aarch64-darwin"
+      ];
+      eachSystem = lib.genAttrs systems;
+
+      flake = self // {
+        inherit inputs;
+      };
+
+      pkgsFor = eachSystem (system: import nixpkgs { inherit system; });
+
+      mkPackagesFor =
+        pkgs:
         let
-          pkgs = import inputs.nixpkgs {
-            inherit system;
-            overlays = [ (import inputs.rust-overlay) ];
-          };
-          rustToolchain = pkgs.rust-bin.stable.latest.default.override {
-            targets = [
-              "wasm32-unknown-unknown"
-              "wasm32-wasip1"
-            ];
-          };
+          scope = lib.makeScope pkgs.newScope (self: {
+            inherit flake inputs;
+            source.src = flake;
+
+            rnadraw-wasm-raw = self.callPackage ./nix/packages/wasm/raw.nix { };
+
+            cli = self.callPackage ./nix/packages/cli/package.nix { };
+            formatter = self.callPackage ./nix/packages/formatter/package.nix { inherit pkgs; };
+            wasi = self.callPackage ./nix/packages/wasi/package.nix { };
+            wasm = self.callPackage ./nix/packages/wasm/package.nix { };
+          });
         in
         {
-          _module.args = {
-            inherit pkgs;
-            craneLib = (inputs.crane.mkLib pkgs).overrideToolchain rustToolchain;
-          };
+          inherit (scope)
+            cli
+            formatter
+            wasi
+            wasm
+            ;
+          default = scope.cli;
         };
+
+      packages = eachSystem (system: mkPackagesFor pkgsFor.${system});
+    in
+    {
+      inherit packages;
+
+      checks = eachSystem (
+        system:
+        import ./nix/checks.nix {
+          packages = packages.${system};
+        }
+        // {
+          devshell-default = self.devShells.${system}.default;
+        }
+      );
+
+      devShells = eachSystem (
+        system:
+        import ./nix/shell.nix {
+          pkgs = pkgsFor.${system};
+          formatter = packages.${system}.formatter;
+        }
+      );
+
+      formatter = eachSystem (system: packages.${system}.formatter);
     };
 }
